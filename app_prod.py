@@ -27,12 +27,15 @@ FACE_CONF_THRESHOLD = float(os.environ.get('FACE_CONF_THRESHOLD', '10'))
 FACE_SIZE_THRESHOLD = float(os.environ.get('FACE_SIZE_THRESHOLD','10'))
 LOAN_DAYS = int(os.environ.get('LOAN_DAYS','5'))
 MAX_BOOKS = int(os.environ.get('MAX_BOOKS','3'))
+MAX_UPLOAD_SIZE = int(os.environ.get('MAX_UPLOAD_SIZE', 2 * 1024 * 1024))
+ALLOWED_EXT = {'.jpg', '.jpeg', '.png', '.webp'}
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(EXPORT_FOLDER, exist_ok=True)
 
 app = Flask(__name__, static_folder='static', static_url_path='/static')
-CORS(app, origins=[orig.strip() for orig in API_ORIGINS.split(',')])
+# allow X-Dev-Key header from frontend
+CORS(app, origins=[orig.strip() for orig in API_ORIGINS.split(',')], expose_headers=['Content-Type'], supports_credentials=True)
 
 engine = create_engine(DATABASE_URL, connect_args={'check_same_thread': False} if DATABASE_URL.startswith('sqlite') else {})
 SessionLocal = sessionmaker(bind=engine)
@@ -53,6 +56,8 @@ class Book(Base):
     id = Column(Integer, primary_key=True)
     code = Column(String, unique=True, nullable=False)
     title = Column(String, nullable=False)
+    description = Column(Text, default='')
+    image = Column(String, nullable=True)
     available = Column(Integer, default=0)
     created_at = Column(String, default=now_str)
 
@@ -90,12 +95,19 @@ def db_session():
     return SessionLocal()
 
 def require_dev_key(req):
-    key = req.headers.get('X-Dev-Key') or req.args.get('dev_key') or (req.json or {}).get('dev_key')
+    key = req.headers.get('X-Dev-Key') or req.args.get('dev_key') or (req.get_json(silent=True) or {}).get('dev_key')
     return key == DEV_KEY
 
 @app.route('/')
 def index():
     return send_file('docs/index.html')
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    path = os.path.join(UPLOAD_FOLDER, filename)
+    if not os.path.exists(path):
+        return jsonify({'ok':False,'msg':'not found'}),404
+    return send_file(path)
 
 @app.route('/api/health')
 def health():
@@ -121,13 +133,44 @@ def api_register_student():
     descriptors = data.get('descriptors') or []
     if not name: return jsonify({'ok':False,'msg':'name required'}),400
     db = db_session()
+    s = db.query(Student).filter(Student.name==name).first()
+    if s:
+        # append descriptors
+        try:
+            arr = json.loads(s.descriptors or '[]')
+        except Exception:
+            arr=[]
+        arr.extend(descriptors)
+        s.descriptors = json.dumps(arr, ensure_ascii=False)
+        db.commit(); db.close(); log('student_update','dev',name,{'add':len(descriptors)}); return jsonify({'ok':True,'msg':'updated'})
     s = Student(name=name, class_name=class_name, descriptors=json.dumps(descriptors, ensure_ascii=False), created_at=now_str())
     try:
-        db.add(s); db.commit(); db.close();
-        log('student_register','dev',name,{'count':len(descriptors)})
-        return jsonify({'ok':True})
+        db.add(s); db.commit(); db.close(); log('student_register','dev',name,{'count':len(descriptors)}); return jsonify({'ok':True})
     except IntegrityError:
         db.rollback(); db.close(); return jsonify({'ok':False,'msg':'exists'}),409
+
+@app.route('/api/upload-image', methods=['POST'])
+def api_upload_image():
+    if not require_dev_key(request): return jsonify({'ok':False,'msg':'no dev key'}),401
+    if 'file' not in request.files:
+        return jsonify({'ok':False,'msg':'no file'}),400
+    file = request.files['file']
+    filename = secure_filename(file.filename or '')
+    if not filename:
+        return jsonify({'ok':False,'msg':'invalid filename'}),400
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_EXT:
+        return jsonify({'ok':False,'msg':'invalid ext'}),400
+    # check size
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    if size > MAX_UPLOAD_SIZE:
+        return jsonify({'ok':False,'msg':'file too large'}),400
+    unique = f"{int(time.time()*1000)}_{filename}"
+    dest = os.path.join(UPLOAD_FOLDER, unique)
+    file.save(dest)
+    return jsonify({'ok':True,'filename':unique,'url':f'/uploads/{unique}'})
 
 @app.route('/api/add-book', methods=['POST'])
 def api_add_book():
@@ -136,24 +179,32 @@ def api_add_book():
     code = (data.get('code') or '').strip()
     title = (data.get('title') or '').strip()
     qty = int(data.get('quantity') or 0)
+    desc = (data.get('description') or '')
+    image = (data.get('image') or None)
     if not code or not title or qty<=0: return jsonify({'ok':False,'msg':'bad params'}),400
     db = db_session()
     b = db.query(Book).filter(Book.code==code).first()
     if b:
-        b.available = b.available + qty; db.commit(); db.close(); log('book_update','dev',title,{'code':code,'add':qty}); return jsonify({'ok':True,'msg':'updated'})
-    nb = Book(code=code,title=title,available=qty,created_at=now_str())
+        b.available = b.available + qty
+        if desc: b.description = desc
+        if image: b.image = image
+        db.commit(); db.close(); log('book_update','dev',title,{'code':code,'add':qty}); return jsonify({'ok':True,'msg':'updated'})
+    nb = Book(code=code,title=title,description=desc,image=image,available=qty,created_at=now_str())
     db.add(nb); db.commit(); db.close(); log('book_add','dev',title,{'code':code,'qty':qty}); return jsonify({'ok':True})
 
 @app.route('/api/books')
 def api_books():
-    q = (request.args.get('q') or '').strip().lower()
+    q = (request.args.get('q') or '').strip()
     db = db_session()
     if q:
         rows = db.query(Book).filter((Book.title.ilike(f'%{q}%')) | (Book.code.ilike(f'%{q}%'))).limit(50).all()
     else:
         rows = db.query(Book).limit(50).all()
+    out = []
+    for r in rows:
+        out.append({'code':r.code,'title':r.title,'available':r.available,'description':r.description,'image': (f'/uploads/{r.image}' if r.image else None)})
     db.close()
-    return jsonify({'items':[{'code':r.code,'title':r.title,'available':r.available} for r in rows]})
+    return jsonify({'items':out})
 
 @app.route('/api/student-search')
 def api_student_search():
@@ -196,6 +247,7 @@ def api_scan():
     descriptor = data.get('descriptor')
     client_conf = float(data.get('face_confidence') or 0)
     nonce = data.get('nonce')
+    action = (data.get('action') or 'borrow')
     # basic validation
     if not student_name or not book_code or not descriptor or not nonce:
         return jsonify({'ok':False,'status':'invalid','message':'Thiếu thông tin'}),400
@@ -230,7 +282,7 @@ def api_scan():
     loans = db.query(Loan).filter(Loan.student_id==s.id, Loan.returned_at==None).all()
     overdue = [l for l in loans if l.due_at and datetime.fromisoformat(l.due_at) < datetime.now()]
     if overdue: db.close(); log('blocked_overdue', student_name, book.code, {}); return jsonify({'ok':False,'status':'invalid','message':'KHÔNG HỢP LỆ: có sách quá hạn'}),400
-    if data.get('action')=='borrow' or data.get('action')=='mượn' or data.get('action')=='muon':
+    if action=='borrow' or action=='mượn' or action=='muon':
         if len(loans) >= MAX_BOOKS: db.close(); log('blocked_limit', student_name, book.code, {}); return jsonify({'ok':False,'status':'invalid','message':'KHÔNG HỢP LỆ: đã đạt tối đa số cuốn'}),400
         if book.available <= 0: db.close(); log('no_qty', student_name, book.code, {}); return jsonify({'ok':False,'status':'invalid','message':'KHÔNG HỢP LỆ: sách đã hết'}),400
         due = (datetime.now() + timedelta(days=LOAN_DAYS)).isoformat()
