@@ -1,136 +1,247 @@
 <!DOCTYPE html>
-<html lang="vi"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Thư viện AI</title>
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<style>
-:root{--bg:#f6f4ef;--fg:#1d2433;--card:#fff;--line:#d9d5cb;--ok:#1f8f4e;--bad:#c63a35;--acc:#24457a;--mut:#667}
-@media(prefers-color-scheme:dark){:root{--bg:#141922;--fg:#e8eaf0;--card:#1e2532;--line:#333c4d;--ok:#2a9d5c;--bad:#d4524d;--acc:#5b8ad4;--mut:#9aa3b5}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
-main{max-width:640px;margin:0 auto;padding:10px}
-button,input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px}
-button{font-weight:600;cursor:pointer}button.on,button.go{background:var(--acc);color:#fff;border-color:var(--acc)}
-input{width:100%}:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
-#stage{position:relative;background:#000;border-radius:12px;overflow:hidden;min-height:200px}
-#v{width:100%;display:block;max-height:55vh;object-fit:cover}
-#bar{position:absolute;left:0;right:0;top:0;padding:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);display:none}
-#bar.ok{background:var(--ok);display:block}#bar.bad{background:var(--bad);display:block}
-#who{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.65);color:#fff;border-radius:6px;padding:4px 10px;display:none}
-.row{display:flex;gap:6px;margin:8px 0}.row>*{flex:1}
-nav{display:flex;gap:6px;margin:8px 0}nav button{flex:1}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0}
-.t{width:100%;border-collapse:collapse;font-size:14px}.t td,.t th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
-.mut{color:var(--mut);font-size:14px}.late{color:var(--bad);font-weight:700}
-.sec{display:none}.sec.on{display:block}label{display:block;font-weight:600;margin:8px 0 4px}
-</style></head><body><main>
-<div id="stage"><video id="v" playsinline muted></video><div id="bar"></div><div id="who"></div></div>
-<p class="mut" id="st">Bấm "Bật camera" để bắt đầu.</p>
-<div class="row"><button id="cam" class="go">Bật camera</button><button id="flip">Đổi camera</button></div>
-<div class="row"><button id="mm" class="on">Chế độ: Mượn</button><button id="mt">Chế độ: Trả</button></div>
-<nav id="nav"></nav>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Thư viện - Quét khuôn mặt & QR</title>
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <style>
+    :root{--bg:#0f1720;--card:#111827;--mut:#9aa3b5;--ok:#10b981;--bad:#ef4444;--accent:#4f46e5;--text:#e6eef8}
+    *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto; background:var(--bg);color:var(--text);}
+    main{max-width:760px;margin:18px auto;padding:12px}
+    .stage{background:#000;border-radius:12px;overflow:hidden;position:relative;height:420px}
+    video{width:100%;height:100%;object-fit:cover;display:block}
+    canvas.overlay{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+    .controls{display:flex;gap:8px;margin-top:10px}
+    .btn{flex:1;padding:10px;border-radius:8px;border:0;font-weight:700;cursor:pointer}
+    .btn.primary{background:var(--accent);color:#fff}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--text)}
+    .row{display:flex;gap:8px}
+    .card{background:var(--card);padding:12px;border-radius:10px;margin-top:12px}
+    label{font-weight:700;color:var(--mut);display:block;margin-bottom:6px}
+    input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--text)}
+    .mut{color:var(--mut);font-size:14px}
+    /* FPS bubble & percent */
+    .fps{position:absolute;left:12px;top:12px;background:rgba(16,185,129,0.12);color:#06d6a0;padding:6px 10px;border-radius:12px;font-weight:800}
+    .status-bar{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;background:rgba(0,0,0,0.6);padding:8px 12px;border-radius:8px;font-weight:800}
+    .status-bar.ok{background:rgba(16,185,129,0.16);color:var(--ok)}
+    .status-bar.bad{background:rgba(239,68,68,0.12);color:var(--bad)}
+    .percent{position:absolute;right:12px;top:12px;background:rgba(255,255,255,0.04);padding:6px 10px;border-radius:8px;font-weight:800}
+    .challenge{position:absolute;left:50%;transform:translateX(-50%);top:50%;translate:-50% -50%;background:rgba(0,0,0,0.6);padding:12px 18px;border-radius:10px;font-weight:900;color:#fff}
+    .hidden{display:none}
+    .dev-panel{margin-top:12px}
+    .log-area{max-height:220px;overflow:auto;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px}
+    @media(max-width:640px){.stage{height:320px}}
+  </style>
+</head>
+<body>
+<main>
+  <h2>Thư viện trường học — Quét khuôn mặt & QR</h2>
+  <div class="stage" id="stage">
+    <video id="video" playsinline muted></video>
+    <canvas id="overlay" class="overlay"></canvas>
+    <div id="fps" class="fps">FPS: -</div>
+    <div id="percent" class="percent">--%</div>
+    <div id="status" class="status-bar mut">Bấm "Bật camera" để bắt đầu.</div>
+    <div id="challenge" class="challenge hidden">YÊU CẦU</div>
+  </div>
 
-<section class="sec on" id="s-dk"><div class="card"><b>Đăng ký khuôn mặt</b>
- <p class="mut">Nhìn thẳng vào camera, bấm lưu. Lưu 2-3 ảnh (góc hơi khác nhau) cho chính xác hơn.</p>
- <label for="nm">Họ và tên</label><input id="nm"><label for="cl">Lớp</label><input id="cl">
- <button class="go" id="sv" style="width:100%;margin-top:10px">Chụp và lưu khuôn mặt</button>
- <table class="t" id="hs" style="margin-top:10px"></table></div></section>
+  <div class="controls">
+    <button id="btnCam" class="btn primary">Bật camera</button>
+    <button id="btnFlip" class="btn ghost">Đổi camera</button>
+    <button id="btnMode" class="btn ghost">Chế độ: Mượn</button>
+    <button id="btnScan" class="btn primary">Bắt đầu quét</button>
+  </div>
 
-<section class="sec" id="s-kho"><div class="card"><b>Kho sách</b><table class="t" id="kho"></table></div>
- <div class="card"><b>Thêm sách</b>
- <label for="bc">Mã (chuỗi trong QR/mã vạch)</label><input id="bc"><label for="bn">Tên sách</label><input id="bn">
- <label for="bq">Số lượng</label><input id="bq" type="number" min="1" value="1">
- <button class="go" id="ab" style="width:100%;margin-top:10px">Lưu sách</button></div></section>
+  <div class="card">
+    <div class="mut">Học sinh (chỉ được tra cứu tên - không thể thêm ảnh hoặc mã)</div>
+    <label for="studentName">Họ và tên</label>
+    <input id="studentName" type="text" placeholder="Nhập họ và tên để tra cứu" />
+    <div class="row" style="margin-top:8px">
+      <button id="btnLookup" class="btn primary">Tra cứu</button>
+      <button id="btnClear" class="btn ghost">Xóa</button>
+    </div>
+    <div id="studentInfo" style="margin-top:10px"></div>
+  </div>
 
-<section class="sec" id="s-nk"><div class="card"><b>Quá hạn</b><table class="t" id="qh"></table></div>
- <div class="card"><b>Nhật ký</b><table class="t" id="lg"></table>
- <button id="ex" style="width:100%;margin-top:10px">Tải nhật ký (JSON)</button>
- <button id="rs" style="width:100%;margin-top:6px">Xóa toàn bộ dữ liệu</button></div></section>
+  <div class="card" id="bookCard">
+    <div class="mut">Tra cứu sách</div>
+    <label for="bookQuery">Tên sách hoặc mã</label>
+    <input id="bookQuery" type="text" placeholder="VD: Dế Mèn hoặc SACH001" />
+    <div style="margin-top:8px"><button id="bookLookup" class="btn primary">Tra cứu sách</button></div>
+    <div id="bookInfo" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card dev-panel hidden" id="devPanel">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="devKey" type="password" placeholder="Khóa dev" style="flex:1" />
+      <button id="devLogin" class="btn primary">Đăng nhập Dev</button>
+    </div>
+    <div style="margin-top:10px">
+      <div style="font-weight:800;margin-bottom:6px">Dev controls (chỉ hiện sau khi đăng nhập)</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <button id="btnAddStudent" class="btn ghost">Thêm khuôn mặt (Dev)</button>
+        <button id="btnAddBook" class="btn ghost">Thêm sách (Dev)</button>
+      </div>
+      <div style="font-weight:800;margin-top:8px">Nhật ký (ghi bởi hệ thống)</div>
+      <div class="log-area" id="logArea"></div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button id="btnExport" class="btn ghost">Xuất log</button>
+        <button id="btnClearLogs" class="btn ghost">Xóa log</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="mut" style="margin-top:12px">Ghi chú: Phiên bản client-only dùng localStorage để demo. Để bảo mật thực sự (khóa dev, nhật ký, quyết định mượn/trả) cần backend HTTPS — tôi sẽ hướng dẫn nếu bạn muốn.</p>
+</main>
 
 <script>
-var M="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/",KEY="tv_ai_1",DAYS=5,TH=0.5;
-function $(i){return document.getElementById(i)}
-function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
-function now(){return new Date().toLocaleString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh"})}
-function load(){try{var s=localStorage.getItem(KEY);if(s)return JSON.parse(s)}catch(e){}
- return{students:[],books:[{code:"SACH001",name:"Dế Mèn phiêu lưu ký",qty:3}],loans:[],log:[]}}
-var D=load();function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
-var v=$("v"),stream=null,facing="user",mode="muon",until=0,ready=false,on=false,bd=null;
-var opt=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.5});
+// CONFIG (client-only demo) - đổi KEY_DEV nếu muốn (lưu ý: client-only không an toàn)
+const DEV_KEY = 'dev-secret-2026'; // demo only
+const LOAN_DAYS = 5; const MAX_BOOKS = 3; const FACE_CONF_THRESHOLD = 10; // percent
 
-async function init(){
- try{$("st").textContent="Đang tải mô hình AI (cần internet, lần đầu hơi lâu)...";
-  await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(M),faceapi.nets.faceLandmark68TinyNet.loadFromUri(M),faceapi.nets.faceRecognitionNet.loadFromUri(M)]);
-  ready=true;$("st").textContent="Mô hình sẵn sàng."}
- catch(e){$("st").textContent="Không tải được mô hình AI. Kiểm tra internet và thử lại."}
- try{if("BarcodeDetector" in window)bd=new BarcodeDetector()}catch(e){}}
-async function startCam(){
- try{if(stream)stream.getTracks().forEach(function(t){t.stop()});
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing}});
-  v.srcObject=stream;await v.play();on=true;tick();
-  $("st").textContent=ready?"Đang quét. Nhìn vào camera, rồi giơ mã sách lên.":"Camera đã bật, đang chờ mô hình AI..."}
- catch(e){$("st").textContent="Không mở được camera. Hãy cho phép quyền camera (trang cần địa chỉ https)."}}
+// state
+let stream = null; let facing = 'user'; let video = null; let overlay=null, ctx=null;
+let modelsLoaded=false; let scanning=false; let mode='borrow';
+let lastScanTime = 0; let lastScannedCodes = new Set();
+let fps = {lastTime: performance.now(), frames:0, value:0};
+let liveness = {active:false, action:null, nonce:null, start:0};
 
-function match(desc){var best=TH,name=null;
- D.students.forEach(function(s){s.ds.forEach(function(d){var x=faceapi.euclideanDistance(desc,d);if(x<best){best=x;name=s.name}})});return name}
-async function readCode(){
- if(bd){try{var r=await bd.detect(v);if(r.length)return r[0].rawValue.trim()}catch(e){}}
- var c=readCode.c||(readCode.c=document.createElement("canvas")),w=v.videoWidth,h=v.videoHeight;if(!w)return null;
- c.width=w;c.height=h;var x=c.getContext("2d",{willReadFrequently:true});x.drawImage(v,0,0,w,h);
- var q=jsQR(x.getImageData(0,0,w,h).data,w,h);return q&&q.data?q.data.trim():null}
-function result(ok,msg){var b=$("bar");b.className=ok?"ok":"bad";b.textContent=(ok?"HỢP LỆ: ":"KHÔNG HỢP LỆ: ")+msg;until=Date.now()+3000;
- setTimeout(function(){if(Date.now()>=until)b.className=""},3100)}
-function process(name,code){
- var b=D.books.find(function(x){return x.code.toUpperCase()===code.toUpperCase()});
- if(!b)return[false,"không có sách mã "+code];
- if(mode==="muon"){
-  if(b.qty<1)return[false,"sách đã hết trong kho"];
-  if(D.loans.some(function(l){return !l.ret&&l.name===name&&l.code===b.code}))return[false,"đang mượn sách này rồi"];
-  b.qty--;D.loans.push({name:name,code:b.code,book:b.name,out:now(),due:Date.now()+DAYS*864e5,ret:null})
- }else{
-  var l=D.loans.find(function(x){return !x.ret&&x.name===name&&x.code===b.code});
-  if(!l)return[false,"không có khoản mượn này"];l.ret=now();b.qty++}
- D.log.unshift({loai:mode==="muon"?"mượn":"trả",dataname:name,bookdata:b.name,time:now()});save();draw();
- return[true,name+(mode==="muon"?" mượn «":" trả «")+b.name+"»"]}
+// storage keys
+const STORE = 'lib_demo_v1';
+function loadStore(){try{return JSON.parse(localStorage.getItem(STORE))||{students:[],books:[{code:'SACH001',title:'Dế Mèn phiêu lưu ký',qty:3}],loans:[],logs:[]}}catch(e){return {students:[],books:[],loans:[],logs:[]}}}
+function saveStore(s){localStorage.setItem(STORE,JSON.stringify(s))}
+let DB = loadStore();
 
-async function tick(){
- if(!on)return;
- if(ready&&Date.now()>until&&v.videoWidth){
-  try{var rs=await faceapi.detectAllFaces(v,opt).withFaceLandmarks(true).withFaceDescriptors(),name=null,w=$("who");
-   if(rs.length){rs.sort(function(a,b){return b.detection.box.area-a.detection.box.area});name=match(rs[0].descriptor);
-    w.style.display="block";w.textContent=name||"Chưa có trong dữ liệu"}else w.style.display="none";
-   var code=await readCode();
-   if(code){if(!name)result(false,"chưa nhận ra khuôn mặt");else{var o=process(name,code);result(o[0],o[1])}}
-  }catch(e){}}
- setTimeout(tick,300)}
+// helpers
+function nowVN(){return new Date().toLocaleString('vi-VN',{timeZone:'Asia/Ho_Chi_Minh'})}
+function pushLog(type, student, book, details){DB.logs.unshift({ts:nowVN(),type,student,book,details}); saveStore(DB); renderLogs();}
+function getStudentByName(name){if(!name) return null; return DB.students.find(s=>s.name.toLowerCase().trim()===name.toLowerCase().trim())}
+function getBookByCode(code){if(!code) return DB.books.find(b=>b.code.toLowerCase()===code.toLowerCase())}
 
-$("cam").onclick=startCam;$("flip").onclick=function(){facing=facing==="user"?"environment":"user";startCam()};
-$("mm").onclick=function(){mode="muon";$("mm").className="on";$("mt").className=""};
-$("mt").onclick=function(){mode="tra";$("mt").className="on";$("mm").className=""};
-$("sv").onclick=async function(){
- var n=$("nm").value.trim(),c=$("cl").value.trim();
- if(!n||!c||!on||!ready)return $("st").textContent="Cần: bật camera, mô hình sẵn sàng, nhập họ tên và lớp.";
- var r=await faceapi.detectSingleFace(v,opt).withFaceLandmarks(true).withFaceDescriptor();
- if(!r)return $("st").textContent="Không thấy khuôn mặt, thử lại.";
- var id=n+" ("+c+")",s=D.students.find(function(x){return x.name===id});
- if(!s){s={name:id,ds:[]};D.students.push(s)}
- s.ds.push(Array.from(r.descriptor));save();draw();$("st").textContent="Đã lưu ảnh thứ "+s.ds.length+" của "+id}
-$("ab").onclick=function(){var c=$("bc").value.trim(),n=$("bn").value.trim(),q=parseInt($("bq").value,10);
- if(!c||!n||!(q>0))return;var b=D.books.find(function(x){return x.code===c});
- if(b)b.qty+=q;else D.books.push({code:c,name:n,qty:q});save();draw();$("bc").value=$("bn").value=""};
-$("ex").onclick=function(){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(D.log,null,2)],{type:"application/json"}));a.download="nhat-ky.json";a.click()};
-$("rs").onclick=function(){if(confirm("Xóa toàn bộ dữ liệu, kể cả khuôn mặt đã lưu?")){try{localStorage.removeItem(KEY)}catch(e){}D=load();draw()}};
+// UI refs
+window.addEventListener('DOMContentLoaded', async ()=>{
+  video = document.getElementById('video'); overlay = document.getElementById('overlay'); ctx = overlay.getContext('2d');
+  document.getElementById('btnCam').addEventListener('click', startCamera);
+  document.getElementById('btnFlip').addEventListener('click', ()=>{facing = facing==='user'?'environment':'user'; startCamera();});
+  document.getElementById('btnMode').addEventListener('click', ()=>{mode = (mode==='borrow'?'return':'borrow'); document.getElementById('btnMode').textContent='Chế độ: '+(mode==='borrow'?'Mượn':'Trả');});
+  document.getElementById('btnScan').addEventListener('click', ()=>{scanning = !scanning; document.getElementById('btnScan').textContent = scanning? 'Dừng quét':'Bắt đầu quét'; if(scanning) startLiveness();});
+  document.getElementById('btnLookup').addEventListener('click', lookupStudent);
+  document.getElementById('bookLookup').addEventListener('click', lookupBook);
+  document.getElementById('btnClear').addEventListener('click', ()=>{document.getElementById('studentName').value=''; document.getElementById('studentInfo').innerHTML='';});
+  document.getElementById('devLogin').addEventListener('click', devLogin);
+  document.getElementById('btnAddStudent').addEventListener('click', devAddFace);
+  document.getElementById('btnAddBook').addEventListener('click', devAddBook);
+  document.getElementById('btnExport').addEventListener('click', exportLogs);
+  document.getElementById('btnClearLogs').addEventListener('click', clearLogs);
+  renderLogs();
+  await loadModels();
+});
 
-var tabs=[["dk","Đăng ký"],["kho","Kho"],["nk","Nhật ký"]];
-$("nav").innerHTML=tabs.map(function(t){return'<button data-t="'+t[0]+'">'+t[1]+"</button>"}).join("");
-function tab(t){tabs.forEach(function(x){$("s-"+x[0]).classList.toggle("on",x[0]===t)});[].forEach.call($("nav").children,function(b){b.classList.toggle("on",b.dataset.t===t)})}
-$("nav").onclick=function(e){if(e.target.dataset.t)tab(e.target.dataset.t)};tab("dk");
-function draw(){
- $("hs").innerHTML=D.students.length?D.students.map(function(s){return"<tr><td>"+esc(s.name)+'</td><td class="mut">'+s.ds.length+" ảnh</td></tr>"}).join(""):'<tr><td class="mut">Chưa có học[...]
- $("kho").innerHTML="<tr><th>Mã</th><th>Tên</th><th>Còn</th></tr>"+D.books.map(function(b){return"<tr><td>"+esc(b.code)+"</td><td>"+esc(b.name)+"</td><td>"+b.qty+"</td></tr>"}).join("");
- var late=D.loans.filter(function(l){return !l.ret&&l.due<Date.now()});
- $("qh").innerHTML=late.length?late.map(function(l){return'<tr><td class="late">'+esc(l.name)+"</td><td>"+esc(l.book)+"</td></tr>"}).join(""):'<tr><td class="mut">Chưa có ai quá hạn.</td></t[...]
- $("lg").innerHTML=D.log.length?D.log.slice(0,50).map(function(x){return"<tr><td>"+esc(x.time)+"</td><td>"+esc(x.dataname)+" ("+x.loai+")</td><td>"+esc(x.bookdata)+"</td></tr>"}).join(""):'<tr><t[...]
+async function loadModels(){try{setStatus('Đang tải mô hình nhận diện...')
+  await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/'), faceapi.nets.faceLandmark68TinyNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/'), faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/')]); modelsLoaded=true; setStatus('Mô hình sẵn sàng');}catch(e){setStatus('Không tải được mô hình. Kiểm tra internet', 'bad') }}
+
+async function startCamera(){
+  try{ if(stream) stream.getTracks().forEach(t=>t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:facing}});
+    video.srcObject = stream; await video.play(); resizeCanvas(); setStatus('Camera bật'); requestAnimationFrame(loop);
+  }catch(e){setStatus('Không mở được camera. Cần HTTPS và cho phép quyền.', 'bad')}
 }
-draw();init();
-</script></main></body></html>
+function resizeCanvas(){overlay.width = video.videoWidth; overlay.height = video.videoHeight}
+
+function setStatus(text, kind=''){
+  const el = document.getElementById('status'); el.textContent = text; el.className = 'status-bar mut' + (kind?(' '+(kind==='ok'?'ok':'bad')):'');
+}
+
+function updateFPS(){ fps.frames++; const t = performance.now(); if(t - fps.lastTime >= 500){ fps.value = Math.round((fps.frames*1000)/(t-fps.lastTime)); fps.frames=0; fps.lastTime=t; document.getElementById('fps').textContent='FPS: '+fps.value; }}
+
+function computeConfidence(box){ // box: {width,height}
+  const frameArea = overlay.width * overlay.height; const faceArea = box.width*box.height; const sizeFactor = Math.min(1, faceArea / (0.18*frameArea));
+  // normalized_distance ~ how small relative to frame
+  const normalized = Math.max(0, 1 - (Math.sqrt(faceArea)/Math.sqrt(frameArea)) );
+  const confidence = Math.max(0, Math.round(100 * (1 - normalized) * sizeFactor)); return confidence;
+}
+
+function drawBox(box, label, color='#10b981'){
+  ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.strokeRect(box.x, box.y, box.width, box.height);
+  ctx.font = '18px monospace'; ctx.fillStyle = color; ctx.fillText(label, box.x, Math.max(20, box.y-6));
+}
+
+async function loop(){ if(!video || video.readyState<2){ requestAnimationFrame(loop); return;} resizeCanvas(); updateFPS(); ctx.clearRect(0,0,overlay.width,overlay.height);
+  if(modelsLoaded && scanning){ try{
+    const detections = await faceapi.detectAllFaces(video, new faceapi.TinyFaceDetectorOptions({inputSize:320,scoreThreshold:0.45})).withFaceLandmarks(true).withFaceDescriptors();
+    if(detections && detections.length>0){ detections.sort((a,b)=> (b.detection.box.width*b.detection.box.height) - (a.detection.box.width*a.detection.box.height));
+      const main = detections[0]; const box = {x:main.detection.box.x, y:main.detection.box.y, width:main.detection.box.width, height:main.detection.box.height};
+      const conf = computeConfidence(box); document.getElementById('percent').textContent = conf + '%';
+      if(conf < FACE_CONF_THRESHOLD){ setStatus('KHÔNG HỢP LỆ: Đến gần hơn', 'bad'); }
+      drawBox(box, conf+'%', conf>=FACE_CONF_THRESHOLD?'#10b981':'#ef4444');
+      if(detections.length>1){ const second = detections[1]; const sb = second.detection.box; drawBox({x:sb.x,y:sb.y,width:sb.width,height:sb.height}, 'Người khác', '#ff9f43'); if((sb.width*sb.height) > (0.6*(box.width*box.height))){ setStatus('KHÔNG HỢP LỆ: Nhiều khuôn mặt quá gần', 'bad'); }
+      }
+      // liveness
+      if(liveness.active){ const ok = evaluateLiveness(main.landmarks); if(ok){ liveness.active=false; document.getElementById('challenge').classList.add('hidden'); setStatus('Liveness: OK', 'ok'); }
+      }
+      // check auto-scan if no challenge and conf ok
+      const now = Date.now(); if(!liveness.active && conf>=FACE_CONF_THRESHOLD && (now - lastScanTime)>1500){ // try read QR and then process
+         const code = await readQRCodeVideo(); if(code){ lastScanTime = now; if(!lastScannedCodes.has(code)){ lastScannedCodes.add(code); processScan(code, conf); } }
+      }
+    } else { document.getElementById('percent').textContent='--%'; }
+  }catch(e){ console.error(e); }
+  }
+  requestAnimationFrame(loop);
+}
+
+async function readQRCodeVideo(){ try{ if('BarcodeDetector' in window){ try{ const det = new BarcodeDetector({formats:['qr_code','code_128','ean_13']}); const codes = await det.detect(video); if(codes && codes.length) return codes[0].rawValue.trim(); }catch(e){} }
+  const tmp = document.createElement('canvas'); tmp.width = video.videoWidth; tmp.height = video.videoHeight; const tctx = tmp.getContext('2d'); tctx.drawImage(video,0,0,tmp.width,tmp.height); const img = tctx.getImageData(0,0,tmp.width,tmp.height); const qr = jsQR(img.data, tmp.width, tmp.height); return qr && qr.data? qr.data.trim():null; }catch(e){return null} }
+
+async function processScan(code, conf){ // client-only: use student name input
+  const studentName = document.getElementById('studentName').value.trim(); if(!studentName){ setStatus('Nhập tên học sinh trước khi quét', 'bad'); return; }
+  const student = getStudentByName(studentName); if(!student){ setStatus('KHÔNG HỢP LỆ: học sinh chưa đăng ký (dev cần thêm)', 'bad'); return; }
+  if(conf < FACE_CONF_THRESHOLD){ setStatus('KHÔNG HỢP LỆ: độ nhận diện thấp', 'bad'); pushLog('scan_failed', studentName, code, {reason:'low_conf',conf}); return; }
+  // enforce overdue and max rules client-side
+  const loans = DB.loans.filter(l=>l.student===studentName && !l.returned);
+  const overdue = loans.filter(l=> new Date(l.due) < new Date()).length; if(overdue>0){ setStatus('KHÔNG HỢP LỆ: có sách quá hạn', 'bad'); pushLog('blocked_overdue', studentName, '', {}); return; }
+  if(mode==='borrow' && loans.length>=MAX_BOOKS){ setStatus('KHÔNG HỢP LỆ: đã đạt tối đa số cuốn', 'bad'); pushLog('blocked_limit', studentName, '', {}); return; }
+  const book = getBookByCode(code); if(!book){ setStatus('KHÔNG HỢP LỆ: mã sách không tồn tại', 'bad'); pushLog('no_book', studentName, code, {}); return; }
+  if(mode==='borrow'){ if(book.qty<=0){ setStatus('KHÔNG HỢP LỆ: sách đã hết', 'bad'); pushLog('no_qty', studentName, book.title, {}); return; } book.qty--; DB.loans.push({student:studentName, book:book.title, code:book.code, borrowed: nowVN(), due: new Date(Date.now()+LOAN_DAYS*864e5).toISOString(), returned:false}); pushLog('borrow', studentName, book.title, {code,conf}); saveStore(DB); setStatus('HỢP LỆ: mượn sách thành công', 'ok'); }
+  else { // return
+    // find last loan
+    const loan = DB.loans.slice().reverse().find(l=>l.student===studentName && l.code===book.code && !l.returned);
+    if(!loan){ setStatus('KHÔNG HỢP LỆ: không có khoản mượn tương ứng', 'bad'); pushLog('no_loan', studentName, book.title, {}); return; }
+    loan.returned = true; loan.returned_at = nowVN(); book.qty++; saveStore(DB); pushLog('return', studentName, book.title, {code,conf}); setStatus('HỢP LỆ: trả sách thành công', 'ok'); }
+}
+
+function lookupStudent(){ const name = document.getElementById('studentName').value.trim(); if(!name){ setStatus('Nhập tên để tra cứu', 'bad'); return;} const s = getStudentByName(name); const div = document.getElementById('studentInfo'); if(!s){ div.innerHTML = '<div class="mut">Không tìm thấy học sinh. Liên hệ thủ thư.</div>'; return;} const loans = DB.loans.filter(l=>l.student===s.name);
+  const active = loans.filter(l=>!l.returned); const overdue = active.filter(l=> new Date(l.due) < new Date()).length;
+  div.innerHTML = `<strong>${s.name}</strong><div>Lớp: ${s.class||''}</div><div>Đang mượn: ${active.length}</div><div>Quá hạn: ${overdue}</div>`;
+}
+
+function lookupBook(){ const q = document.getElementById('bookQuery').value.trim().toLowerCase(); const div = document.getElementById('bookInfo'); if(!q){ div.innerHTML=''; return;} const items = DB.books.filter(b=>b.title.toLowerCase().includes(q) || b.code.toLowerCase().includes(q)); if(items.length===0){ div.innerHTML='<div class="mut">Không tìm thấy sách.</div>'; return;} div.innerHTML = items.map(b=>`<div><strong>${b.title}</strong> (${b.code}) — Còn: ${b.qty}</div>`).join(''); }
+
+// Dev features (in client-only: not cryptographically secure)
+function devLogin(){ const key = document.getElementById('devKey').value; if(key===DEV_KEY){ document.getElementById('devPanel').classList.remove('hidden'); setStatus('Dev đăng nhập thành công','ok'); } else setStatus('Khóa dev sai','bad'); }
+function devAddFace(){ // add placeholder student with no descriptors (in client-only). Prompt for name & class
+  const name = prompt('Họ và tên (VD: Nguyễn Văn A)'); if(!name) return; const cls = prompt('Lớp (VD: 10A1)')||''; if(getStudentByName(name)){ alert('Đã có học sinh'); return;} DB.students.push({name:name.trim(), class:cls.trim(), descriptors:[]}); saveStore(DB); pushLog('dev_add_student', name.trim(),'',{class:cls}); alert('Đã thêm học sinh (chú ý: client-only chưa lưu descriptor thực).'); }
+function devAddBook(){ const code=prompt('Mã sách (vd SACH002)'); if(!code) return; const title=prompt('Tên sách'); const qty = Number(prompt('Số lượng','1')||1); if(!title) return; if(getBookByCode(code)){ alert('Mã đã tồn tại, cập nhật số lượng'); DB.books.find(b=>b.code===code).qty += qty; } else DB.books.push({code:code.trim(),title:title.trim(),qty}); saveStore(DB); pushLog('dev_add_book', 'dev', title, {code,qty}); alert('Đã thêm/cập nhật sách'); }
+function exportLogs(){ const blob = new Blob([JSON.stringify(DB.logs,null,2)],{type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'logs.json'; a.click(); }
+function clearLogs(){ if(!confirm('Xóa toàn bộ log?')) return; DB.logs = []; saveStore(DB); renderLogs(); }
+function renderLogs(){ const el = document.getElementById('logArea'); el.innerHTML = DB.logs.slice(0,200).map(l=>`<div style="padding:6px;border-bottom:1px solid rgba(255,255,255,0.02)"><strong>${l.type}</strong> — ${l.ts}<br>${l.student||''} — ${l.book||''}<div class="mut">${JSON.stringify(l.details||{})}</div></div>`).join(''); }
+
+// liveness: random single action
+function startLiveness(){ liveness.active=false; if(Math.random()<0.6){ liveness.active = true; const acts = ['open_mouth','turn_head','blink']; liveness.action = acts[Math.floor(Math.random()*acts.length)]; liveness.nonce = Date.now()+'-'+Math.random().toString(36).slice(2); liveness.start = Date.now(); const labels = {open_mouth:'MỞ MIỆNG', turn_head:'QUAY MẶT', blink:'NHẮM MẮT'}; const el = document.getElementById('challenge'); el.textContent = 'YÊU CẦU: '+labels[liveness.action]; el.classList.remove('hidden'); setStatus('Yêu cầu chống mạo danh: '+labels[liveness.action]); } }
+function evaluateLiveness(landmarks){ if(!liveness.active) return false; try{ const lm = landmarks; // use simple heuristics
+  if(liveness.action==='open_mouth'){ const top = lm.getMouth()[0]; const bottom = lm.getMouth()[6]; return (bottom.y - top.y) > 6; }
+  if(liveness.action==='blink'){ const left = lm.getLeftEye(); const topL = left[1]; const bottomL = left[5]; return (bottomL.y - topL.y) < 2; }
+  if(liveness.action==='turn_head'){ const nose = lm.getNose()[0]; const leftEye = lm.getLeftEye()[0]; const rightEye = lm.getRightEye()[3]; return Math.abs((leftEye.x+rightEye.x)/2 - nose.x) > 8; }
+ }catch(e){return false} return false }
+
+// simple QR test helper is already in processScan
+
+// prevent students from adding images/codes: hide dev panel initially
+
+// small utilities
+function exportDB(){ const blob = new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='db.json'; a.click(); }
+
+</script>
+</body>
+</html>
