@@ -1,0 +1,14 @@
+# Sample docker-compose for local testing with sqlite
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    environment:
+      - DEV_KEY=dev-secret-2026
+      - API_ORIGINS=https://fihfishfihhh.github.io
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./exports:/app/exports
