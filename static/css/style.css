@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thư viện trường học</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+</head>
+<body>
+    <main class="app-shell">
+        <header class="topbar">
+            <div>
+                <div class="eyebrow">Hệ thống thư viện</div>
+                <h1>Thư viện trường học</h1>
+            </div>
+            <button id="toggle-dev" class="button secondary">Dev</button>
+        </header>
+
+        <section class="camera-panel card">
+            <div id="stage" class="stage">
+                <video id="video" autoplay playsinline muted></video>
+                <canvas id="overlay"></canvas>
+                <div id="status-bar" class="status-bar"></div>
+                <div id="identity-label" class="identity-label"></div>
+                <div id="challenge-box" class="challenge-box hidden"></div>
+            </div>
+            <div class="camera-toolbar">
+                <button id="start-camera" class="button primary">Bật camera</button>
+                <button id="flip-camera" class="button secondary">Đổi camera</button>
+                <button id="start-scan" class="button accent">Quét</button>
+            </div>
+            <p id="status-text" class="status-text">Bấm "Bật camera" để bắt đầu.</p>
+        </section>
+
+        <section class="mode-row card">
+            <button id="mode-borrow" class="button mode active">Mượn</button>
+            <button id="mode-return" class="button mode">Trả</button>
+        </section>
+
+        <section class="grid-layout">
+            <aside class="card student-panel">
+                <h2>Học sinh</h2>
+                <label for="student-name">Tên học sinh</label>
+                <input id="student-name" type="text" placeholder="Nhập tên để tra cứu" />
+                <div class="inline-actions">
+                    <button id="search-student" class="button primary">Tra cứu</button>
+                    <button id="clear-student" class="button secondary">Xóa</button>
+                </div>
+                <div id="student-summary" class="summary-box"></div>
+            </aside>
+
+            <aside class="card book-panel">
+                <h2>Tra cứu sách</h2>
+                <label for="book-query">Tên sách / mã sách</label>
+                <input id="book-query" type="text" placeholder="Ví dụ: Toán, SACH001" />
+                <button id="search-book" class="button primary full">Tra cứu</button>
+                <div id="book-summary" class="summary-box"></div>
+            </aside>
+        </section>
+
+        <section id="dev-panel" class="card hidden dev-panel">
+            <div class="panel-header">
+                <h2>Dev / Thủ thư</h2>
+                <input id="dev-key" type="password" placeholder="Nhập khóa riêng" />
+                <button id="login-dev" class="button primary">Đăng nhập</button>
+            </div>
+
+            <div class="dev-tabs">
+                <button class="button tab active" data-tab="tab-student">Khuôn mặt</button>
+                <button class="button tab" data-tab="tab-book">Sách</button>
+                <button class="button tab" data-tab="tab-logs">Nhật ký</button>
+                <button class="button tab" data-tab="tab-backup">Sao lưu</button>
+            </div>
+
+            <div id="tab-student" class="tab-panel active">
+                <label for="student-register-name">Họ và tên</label>
+                <input id="student-register-name" type="text" placeholder="Ví dụ: Nguyễn Văn A" />
+                <label for="student-register-class">Lớp</label>
+                <input id="student-register-class" type="text" placeholder="Ví dụ: 10A1" />
+                <button id="register-student" class="button primary full">Lưu khuôn mặt</button>
+            </div>
+
+            <div id="tab-book" class="tab-panel">
+                <label for="book-code">Mã sách</label>
+                <input id="book-code" type="text" placeholder="SACH001" />
+                <label for="book-title">Tên sách</label>
+                <input id="book-title" type="text" placeholder="Tên sách" />
+                <label for="book-qty">Số lượng</label>
+                <input id="book-qty" type="number" min="1" value="1" />
+                <button id="add-book" class="button primary full">Thêm sách</button>
+            </div>
+
+            <div id="tab-logs" class="tab-panel">
+                <div class="inline-actions">
+                    <button id="export-log" class="button primary">Xuất log</button>
+                    <button id="refresh-log" class="button secondary">Tải lại</button>
+                </div>
+                <div id="log-list" class="log-list"></div>
+            </div>
+
+            <div id="tab-backup" class="tab-panel">
+                <button id="backup-db" class="button primary full">Sao lưu</button>
+                <label for="restore-file">Phục hồi</label>
+                <input id="restore-file" type="file" accept=".sqlite" />
+                <button id="restore-db" class="button accent full">Phục hồi dữ liệu</button>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

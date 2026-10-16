@@ -1,0 +1,50 @@
+# Thư viện trường học
+
+Ứng dụng web cho hệ thống mượn/trả sách trong trường học, chạy trên trình duyệt điện thoại và máy tính.
+
+## Mục tiêu
+- Học sinh tra cứu thông tin cá nhân và sách.
+- Dev / thủ thư đăng nhập bằng khóa riêng để quản lý khuôn mặt, sách, nhật ký và sao lưu dữ liệu.
+- Mượn/trả được quyết định ở phía máy chủ bằng Flask + SQLite.
+- Giao diện sử dụng HTML, CSS, JavaScript thuần; không dùng framework mạnh.
+
+## Cài đặt nhanh
+1. Tạo môi trường ảo:
+   ```bash
+   python -m venv .venv
+   . .venv/bin/activate
+   ```
+2. Cài đặt phụ thuộc:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Khởi chạy ứng dụng:
+   ```bash
+   python app.py
+   ```
+4. Mở browser:
+   - `http://localhost:5000`
+
+## Thay đổi khóa riêng
+Mở file `config.py` và chỉnh `DEV_KEY` nếu cần.
+
+## Lưu ý quan trọng
+- Camera trên điện thoại yêu cầu HTTPS hoặc localhost.
+- Đây là bản mẫu thực thi được, có thể tiếp tục nâng cấp với nhận diện khuôn mặt thật, QR scan chuyên sâu và bổ sung xác thực thực tế hơn.
+
+## Dữ liệu
+- SQLite được lưu trong `data/library.db`
+- Ảnh tải lên sẽ lưu trong `uploads/`
+- File sao lưu trong `exports/`
+
+## Cấu hình
+- `LOAN_DAYS = 5`
+- `MAX_BOOKS_PER_STUDENT = 3`
+- `FACE_CONFIDENCE_THRESHOLD = 10`
+- `FACE_SIZE_THRESHOLD = 10`
+
+## Lưu ý về an ninh
+- Khóa dev mặc định chỉ là mẫu; đổi ngay khi triển khai thực tế.
+- Không lưu thông tin nhạy cảm ở frontend.
+- Quyết định mượn/trả phải được thực thi ở máy chủ.
+
