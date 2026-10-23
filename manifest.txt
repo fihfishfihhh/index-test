@@ -1,1 +1,0 @@
-Updated deployment docs and production Flask app with nonce/challenge; Dockerfile + Procfile + docker-compose and README_DEPLOY.md

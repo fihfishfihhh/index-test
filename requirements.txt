@@ -1,7 +1,0 @@
-Flask
-flask-cors
-gunicorn
-sqlalchemy
-psycopg2-binary
-face-recognition
-face-api

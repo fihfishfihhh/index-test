@@ -1,135 +1,42 @@
 <!DOCTYPE html>
-<html lang="vi"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Thư viện AI</title>
-<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-<style>
-:root{--bg:#f6f4ef;--fg:#1d2433;--card:#fff;--line:#d9d5cb;--ok:#1f8f4e;--bad:#c63a35;--acc:#24457a;--mut:#667}
-@media(prefers-color-scheme:dark){:root{--bg:#141922;--fg:#e8eaf0;--card:#1e2532;--line:#333c4d;--ok:#2a9d5c;--bad:#d4524d;--acc:#5b8ad4;--mut:#9aa3b5}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
-main{max-width:640px;margin:0 auto;padding:10px}
-button,input{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px}
-button{font-weight:600;cursor:pointer}button.on,button.go{background:var(--acc);color:#fff;border-color:var(--acc)}
-input{width:100%}:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
-#stage{position:relative;background:#000;border-radius:12px;overflow:hidden;min-height:200px}
-#v{width:100%;display:block;max-height:55vh;object-fit:cover}
-#bar{position:absolute;left:0;right:0;top:0;padding:10px;font-weight:700;color:#fff;background:rgba(0,0,0,.55);display:none}
-#bar.ok{background:var(--ok);display:block}#bar.bad{background:var(--bad);display:block}
-#who{position:absolute;left:8px;bottom:8px;background:rgba(0,0,0,.65);color:#fff;border-radius:6px;padding:4px 10px;display:none}
-.row{display:flex;gap:6px;margin:8px 0}.row>*{flex:1}
-nav{display:flex;gap:6px;margin:8px 0}nav button{flex:1}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0}
-.t{width:100%;border-collapse:collapse;font-size:14px}.t td,.t th{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left}
-.mut{color:var(--mut);font-size:14px}.late{color:var(--bad);font-weight:700}
-.sec{display:none}.sec.on{display:block}label{display:block;font-weight:600;margin:8px 0 4px}
-</style></head><body><main>
-<div id="stage"><video id="v" playsinline muted></video><div id="bar"></div><div id="who"></div></div>
-<p class="mut" id="st">Bấm "Bật camera" để bắt đầu.</p>
-<div class="row"><button id="cam" class="go">Bật camera</button><button id="flip">Đổi camera</button></div>
-<div class="row"><button id="mm" class="on">Chế độ: Mượn</button><button id="mt">Chế độ: Trả</button></div>
-<nav id="nav"></nav>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FIH Community - Geometry Dash Hub</title>
 
-<section class="sec on" id="s-dk"><div class="card"><b>Đăng ký khuôn mặt</b>
- <p class="mut">Nhìn thẳng vào camera, bấm lưu. Lưu 2-3 ảnh (góc hơi khác nhau) cho chính xác hơn.</p>
- <label for="nm">Họ và tên</label><input id="nm"><label for="cl">Lớp</label><input id="cl">
- <button class="go" id="sv" style="width:100%;margin-top:10px">Chụp và lưu khuôn mặt</button>
- <table class="t" id="hs" style="margin-top:10px"></table></div></section>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- React & ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
 
-<section class="sec" id="s-kho"><div class="card"><b>Kho sách</b><table class="t" id="kho"></table></div>
- <div class="card"><b>Thêm sách</b>
- <label for="bc">Mã (chuỗi trong QR/mã vạch)</label><input id="bc"><label for="bn">Tên sách</label><input id="bn">
- <label for="bq">Số lượng</label><input id="bq" type="number" min="1" value="1">
- <button class="go" id="ab" style="width:100%;margin-top:10px">Lưu sách</button></div></section>
+  <!-- Custom styles -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans antialiased">
+  <div id="root"></div>
 
-<section class="sec" id="s-nk"><div class="card"><b>Quá hạn</b><table class="t" id="qh"></table></div>
- <div class="card"><b>Nhật ký</b><table class="t" id="lg"></table>
- <button id="ex" style="width:100%;margin-top:10px">Tải nhật ký (JSON)</button>
- <button id="rs" style="width:100%;margin-top:6px">Xóa toàn bộ dữ liệu</button></div></section>
+  <!-- Data -->
+  <script src="js/data.js"></script>
 
-<script>
-var M="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/",KEY="tv_ai_1",DAYS=5,TH=0.5;
-function $(i){return document.getElementById(i)}
-function esc(s){var d=document.createElement("div");d.textContent=s;return d.innerHTML}
-function now(){return new Date().toLocaleString("vi-VN",{timeZone:"Asia/Ho_Chi_Minh"})}
-function load(){try{var s=localStorage.getItem(KEY);if(s)return JSON.parse(s)}catch(e){}
- return{students:[],books:[{code:"SACH001",name:"Dế Mèn phiêu lưu ký",qty:3}],loans:[],log:[]}}
-var D=load();function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
-var v=$("v"),stream=null,facing="user",mode="muon",until=0,ready=false,on=false,bd=null;
-var opt=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.5});
+  <!-- Components (order doesn't matter, but they must load before app.jsx) -->
+  <script type="text/babel" src="js/components/Header.jsx"></script>
+  <script type="text/babel" src="js/components/Sidebar.jsx"></script>
+  <script type="text/babel" src="js/components/HomeTab.jsx"></script>
+  <script type="text/babel" src="js/components/DiscordTab.jsx"></script>
+  <script type="text/babel" src="js/components/SubmitTab.jsx"></script>
+  <script type="text/babel" src="js/components/CreatorsTab.jsx"></script>
+  <script type="text/babel" src="js/components/CollabTab.jsx"></script>
+  <script type="text/babel" src="js/components/HelpersTab.jsx"></script>
+  <script type="text/babel" src="js/components/FishListTab.jsx"></script>
+  <script type="text/babel" src="js/components/OtherListTab.jsx"></script>
 
-async function init(){
- try{$("st").textContent="Đang tải mô hình AI (cần internet, lần đầu hơi lâu)...";
-  await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(M),faceapi.nets.faceLandmark68TinyNet.loadFromUri(M),faceapi.nets.faceRecognitionNet.loadFromUri(M)]);
-  ready=true;$("st").textContent="Mô hình sẵn sàng."}
- catch(e){$("st").textContent="Không tải được mô hình AI. Kiểm tra internet và thử lại."}
- try{if("BarcodeDetector" in window)bd=new BarcodeDetector()}catch(e){}}
-async function startCam(){
- try{if(stream)stream.getTracks().forEach(function(t){t.stop()});
-  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing}});
-  v.srcObject=stream;await v.play();on=true;tick();
-  $("st").textContent=ready?"Đang quét. Nhìn vào camera, rồi giơ mã sách lên.":"Camera đã bật, đang chờ mô hình AI..."}
- catch(e){$("st").textContent="Không mở được camera. Hãy cho phép quyền camera (trang cần địa chỉ https)."}}
-
-function match(desc){var best=TH,name=null;
- D.students.forEach(function(s){s.ds.forEach(function(d){var x=faceapi.euclideanDistance(desc,d);if(x<best){best=x;name=s.name}})});return name}
-async function readCode(){
- if(bd){try{var r=await bd.detect(v);if(r.length)return r[0].rawValue.trim()}catch(e){}}
- var c=readCode.c||(readCode.c=document.createElement("canvas")),w=v.videoWidth,h=v.videoHeight;if(!w)return null;
- c.width=w;c.height=h;var x=c.getContext("2d",{willReadFrequently:true});x.drawImage(v,0,0,w,h);
- var q=jsQR(x.getImageData(0,0,w,h).data,w,h);return q&&q.data?q.data.trim():null}
-function result(ok,msg){var b=$("bar");b.className=ok?"ok":"bad";b.textContent=(ok?"HỢP LỆ: ":"KHÔNG HỢP LỆ: ")+msg;until=Date.now()+3000;
- setTimeout(function(){if(Date.now()>=until)b.className=""},3100)}
-function process(name,code){
- var b=D.books.find(function(x){return x.code.toUpperCase()===code.toUpperCase()});
- if(!b)return[false,"không có sách mã "+code];
- if(mode==="muon"){
-  if(b.qty<1)return[false,"sách đã hết trong kho"];
-  if(D.loans.some(function(l){return !l.ret&&l.name===name&&l.code===b.code}))return[false,"đang mượn sách này rồi"];
-  b.qty--;D.loans.push({name:name,code:b.code,book:b.name,out:now(),due:Date.now()+DAYS*864e5,ret:null})
- }else{
-  var l=D.loans.find(function(x){return !x.ret&&x.name===name&&x.code===b.code});
-  if(!l)return[false,"không có khoản mượn này"];l.ret=now();b.qty++}
- D.log.unshift({loai:mode==="muon"?"mượn":"trả",dataname:name,bookdata:b.name,time:now()});save();draw();
- return[true,name+(mode==="muon"?" mượn «":" trả «")+b.name+"»"]}
-
-async function tick(){
- if(!on)return;
- if(ready&&Date.now()>until&&v.videoWidth){
-  try{var rs=await faceapi.detectAllFaces(v,opt).withFaceLandmarks(true).withFaceDescriptors(),name=null,w=$("who");
-   if(rs.length){rs.sort(function(a,b){return b.detection.box.area-a.detection.box.area});name=match(rs[0].descriptor);
-    w.style.display="block";w.textContent=name||"Chưa có trong dữ liệu"}else w.style.display="none";
-   var code=await readCode();
-   if(code){if(!name)result(false,"chưa nhận ra khuôn mặt");else{var o=process(name,code);result(o[0],o[1])}}
-  }catch(e){}}
- setTimeout(tick,300)}
-
-$("cam").onclick=startCam;$("flip").onclick=function(){facing=facing==="user"?"environment":"user";startCam()};
-$("mm").onclick=function(){mode="muon";$("mm").className="on";$("mt").className=""};
-$("mt").onclick=function(){mode="tra";$("mt").className="on";$("mm").className=""};
-$("sv").onclick=async function(){
- var n=$("nm").value.trim(),c=$("cl").value.trim();
- if(!n||!c||!on||!ready)return $("st").textContent="Cần: bật camera, mô hình sẵn sàng, nhập họ tên và lớp.";
- var r=await faceapi.detectSingleFace(v,opt).withFaceLandmarks(true).withFaceDescriptor();
- if(!r)return $("st").textContent="Không thấy khuôn mặt, thử lại.";
- var id=n+" ("+c+")",s=D.students.find(function(x){return x.name===id});
- if(!s){s={name:id,ds:[]};D.students.push(s)}
- s.ds.push(Array.from(r.descriptor));save();draw();$("st").textContent="Đã lưu ảnh thứ "+s.ds.length+" của "+id}
-$("ab").onclick=function(){var c=$("bc").value.trim(),n=$("bn").value.trim(),q=parseInt($("bq").value,10);
- if(!c||!n||!(q>0))return;var b=D.books.find(function(x){return x.code===c});
- if(b)b.qty+=q;else D.books.push({code:c,name:n,qty:q});save();draw();$("bc").value=$("bn").value=""};
-$("ex").onclick=function(){var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(D.log,null,2)],{type:"application/json"}));a.download="nhat-ky.json";a.click()};
-$("rs").onclick=function(){if(confirm("Xóa toàn bộ dữ liệu, kể cả khuôn mặt đã lưu?")){try{localStorage.removeItem(KEY)}catch(e){}D=load();draw()}};
-
-var tabs=[["dk","Đăng ký"],["kho","Kho"],["nk","Nhật ký"]];
-$("nav").innerHTML=tabs.map(function(t){return'<button data-t="'+t[0]+'">'+t[1]+"</button>"}).join("");
-function tab(t){tabs.forEach(function(x){$("s-"+x[0]).classList.toggle("on",x[0]===t)});[].forEach.call($("nav").children,function(b){b.classList.toggle("on",b.dataset.t===t)})}
-$("nav").onclick=function(e){if(e.target.dataset.t)tab(e.target.dataset.t)};tab("dk");
-function draw(){
- $("hs").innerHTML=D.students.length?D.students.map(function(s){return"<tr><td>"+esc(s.name)+'</td><td class="mut">'+s.ds.length+" ảnh</td></tr>"}).join(""):'<tr><td class="mut">Chưa có học sinh nào.</td></tr>';
- $("kho").innerHTML="<tr><th>Mã</th><th>Tên</th><th>Còn</th></tr>"+D.books.map(function(b){return"<tr><td>"+esc(b.code)+"</td><td>"+esc(b.name)+"</td><td>"+b.qty+"</td></tr>"}).join("");
- var late=D.loans.filter(function(l){return !l.ret&&l.due<Date.now()});
- $("qh").innerHTML=late.length?late.map(function(l){return'<tr><td class="late">'+esc(l.name)+"</td><td>"+esc(l.book)+"</td></tr>"}).join(""):'<tr><td class="mut">Chưa có ai quá hạn.</td></tr>';
- $("lg").innerHTML=D.log.length?D.log.slice(0,50).map(function(x){return"<tr><td>"+esc(x.time)+"</td><td>"+esc(x.dataname)+" ("+x.loai+")</td><td>"+esc(x.bookdata)+"</td></tr>"}).join(""):'<tr><td class="mut">Chưa có giao dịch.</td></tr>'}
-draw();init();
-</script></main></body></html>
+  <!-- App entry -->
+  <script type="text/babel" src="js/app.jsx"></script>
+</body>
+</html>

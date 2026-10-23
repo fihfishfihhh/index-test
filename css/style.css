@@ -1,0 +1,9 @@
+/* Custom styles for FIH Community.
+   Layout/colors come from Tailwind (CDN); put overrides here. */
+html, body, #root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
